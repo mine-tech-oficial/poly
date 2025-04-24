@@ -180,7 +180,8 @@ pub fn long_divide(
   with operations: Operations(a),
 ) -> #(Polynomial(a, Descending), Polynomial(a, Descending)) {
   let degree_divisor = degree(divisor, operations.zero)
-  let degree_dividend = degree(divisor, operations.zero)
+  let degree_dividend = degree(dividend, operations.zero)
+
   use <- bool.guard(degree_divisor < degree_dividend, #(Polynomial([]), divisor))
   let new_dividend =
     list.flatten([
