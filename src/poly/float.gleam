@@ -3,13 +3,13 @@
 //// For polynomial creation and conversion, use the functions provided in the `poly` module
 
 import gleam/float
-import poly.{type Ascending, type Descending, Operations}
+import poly.{Operations}
 
 /// A polynomial with float coefficients.
 /// 
 /// The `order` type parameter is a phantom type representing the order.
-pub type Polynomial(order) =
-  poly.Polynomial(Float, order)
+pub type Polynomial =
+  poly.Polynomial(Float)
 
 const operations = Operations(
   zero: 0.0,
@@ -21,80 +21,42 @@ const operations = Operations(
 
 // ---------- QOL ----------
 
-/// Get the degree of a descending poly.
-pub fn degree(polynomial: Polynomial(Descending)) -> Int {
+/// Get the degree of a polynomial.
+pub fn degree(polynomial: Polynomial) -> Int {
   poly.degree(polynomial, 0.0)
 }
 
-/// Get the degree of an ascending poly.
-pub fn degree_ascending(polynomial: Polynomial(Ascending)) -> Int {
-  poly.degree_ascending(polynomial, 0.0)
-}
-
-/// Simplify a descending poly.
-pub fn simplify(polynomial: Polynomial(Descending)) -> Polynomial(Descending) {
+/// Simplify a polynomial.
+pub fn simplify(polynomial: Polynomial) -> Polynomial {
   poly.simplify(polynomial, 0.0)
-}
-
-/// Simplify an ascending poly.
-pub fn simplify_ascending(
-  polynomial: Polynomial(Ascending),
-) -> Polynomial(Ascending) {
-  poly.simplify_ascending(polynomial, 0.0)
 }
 
 // ---------- Operations ----------
 
-/// Evaluate an descending polynomial, using the operations passed.
-pub fn evaluate(
-  polynomial polynomial: Polynomial(Descending),
-  x value: Float,
-) -> Float {
+/// Evaluate a polynomial, using the operations passed.
+pub fn evaluate(polynomial polynomial: Polynomial, x value: Float) -> Float {
   poly.evaluate(polynomial, value, operations)
 }
 
-/// Evaluate an ascending polynomial, using the operations passed.
-pub fn evaluate_ascending(
-  polynomial polynomial: Polynomial(Ascending),
-  x value: Float,
-) -> Float {
-  poly.evaluate_ascending(polynomial, value, operations)
-}
-
-/// Add two polynomials.
-pub fn add(
-  first a: Polynomial(Descending),
-  second b: Polynomial(Descending),
-) -> Polynomial(Descending) {
+/// Add two polynomials. Returns a descending polynomial.
+pub fn add(first a: Polynomial, second b: Polynomial) -> Polynomial {
   poly.add(a, b, operations)
 }
 
-/// Subtract two polynomials.
-pub fn subtract(
-  first a: Polynomial(Descending),
-  second b: Polynomial(Descending),
-) -> Polynomial(Descending) {
+/// Subtract two polynomials. Returns a descending polynomial.
+pub fn subtract(first a: Polynomial, second b: Polynomial) -> Polynomial {
   poly.subtract(a, b, operations)
 }
 
-/// Multiply two descending polynomials.
-/// 
-/// If you need to multiply two ascending polynomials, you can convert
-/// to descending the inputs and convert to ascending the output.
-pub fn multiply(
-  first a: Polynomial(Descending),
-  second b: Polynomial(Descending),
-) -> Polynomial(Descending) {
+/// Multiply two descending polynomials. Returns an ascending polynomial.
+pub fn multiply(first a: Polynomial, second b: Polynomial) -> Polynomial {
   poly.multiply(a, b, operations)
 }
 
-/// Long divide two descending polynomials. Returns the quotient and the remainder.
-/// 
-/// If you need to multiply two ascending polynomials, you can convert
-/// to descending the inputs and convert to ascending the output.
+/// Long divide two polynomials. Returns the quotient and the remainder as descending polynomials.
 pub fn long_divide(
-  divisor a: Polynomial(Descending),
-  dividend b: Polynomial(Descending),
-) -> #(Polynomial(Descending), Polynomial(Descending)) {
+  divisor a: Polynomial,
+  dividend b: Polynomial,
+) -> #(Polynomial, Polynomial) {
   poly.long_divide(a, b, operations)
 }
