@@ -1,4 +1,6 @@
 //// A module for working with float polynomials
+//// 
+//// For polynomial creation and conversion, use the functions provided in the `poly` module
 
 import gleam/float
 import poly.{type Ascending, type Descending, Operations}
@@ -17,32 +19,7 @@ const operations = Operations(
   divide: float.divide,
 )
 
-/// Convert the polynomial to an ascending order of the coefficients.
-pub fn to_ascending(polynomial: Polynomial(Descending)) -> Polynomial(Ascending) {
-  poly.to_ascending(polynomial)
-}
-
-/// Convert the polynomial to a descending order of the coefficients.
-pub fn to_descending(
-  polynomial: Polynomial(Ascending),
-) -> Polynomial(Descending) {
-  poly.to_descending(polynomial)
-}
-
-/// Create a descending polynomial from a list of coefficients.
-pub fn from_list(coefficients: List(Float)) -> Polynomial(Descending) {
-  poly.from_list(coefficients)
-}
-
-/// Create an ascending polynomial from a list of coefficients.
-pub fn from_list_ascending(coefficients: List(Float)) -> Polynomial(Ascending) {
-  poly.from_list_ascending(coefficients)
-}
-
-/// Get the list of coefficients from the poly.
-pub fn coefficients(polynomial: Polynomial(order)) -> List(Float) {
-  poly.coefficients(polynomial)
-}
+// ---------- QOL ----------
 
 /// Get the degree of a descending poly.
 pub fn degree(polynomial: Polynomial(Descending)) -> Int {
@@ -66,19 +43,37 @@ pub fn simplify_ascending(
   poly.simplify_ascending(polynomial, 0.0)
 }
 
+// ---------- Operations ----------
+
+/// Evaluate an descending polynomial, using the operations passed.
+pub fn evaluate(
+  polynomial polynomial: Polynomial(Descending),
+  x value: Float,
+) -> Float {
+  poly.evaluate(polynomial, value, operations)
+}
+
+/// Evaluate an ascending polynomial, using the operations passed.
+pub fn evaluate_ascending(
+  polynomial polynomial: Polynomial(Ascending),
+  x value: Float,
+) -> Float {
+  poly.evaluate_ascending(polynomial, value, operations)
+}
+
 /// Add two polynomials.
 pub fn add(
-  first a: Polynomial(order),
-  second b: Polynomial(order),
-) -> Polynomial(order) {
+  first a: Polynomial(Descending),
+  second b: Polynomial(Descending),
+) -> Polynomial(Descending) {
   poly.add(a, b, operations)
 }
 
 /// Subtract two polynomials.
 pub fn subtract(
-  first a: Polynomial(order),
-  second b: Polynomial(order),
-) -> Polynomial(order) {
+  first a: Polynomial(Descending),
+  second b: Polynomial(Descending),
+) -> Polynomial(Descending) {
   poly.subtract(a, b, operations)
 }
 

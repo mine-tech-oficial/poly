@@ -6,6 +6,8 @@
 
 import gleam/bool
 import gleam/list
+import gleam/result
+import iv
 
 pub type Ascending
 
@@ -34,6 +36,8 @@ pub type Operations(a) {
 pub opaque type Polynomial(coefficient, order) {
   Polynomial(coefficients: List(coefficient))
 }
+
+// ---------- Conversion ----------
 
 /// Convert the polynomial to an ascending order of the coefficients.
 pub fn to_ascending(
@@ -64,6 +68,8 @@ pub fn coefficients(polynomial: Polynomial(a, b)) -> List(a) {
   polynomial.coefficients
 }
 
+// ---------- QOL ----------
+
 /// Get the degree of a descending polynomial.
 pub fn degree(polynomial: Polynomial(a, Descending), zero: a) -> Int {
   list.length(simplify(polynomial, zero).coefficients)
@@ -93,13 +99,65 @@ pub fn simplify_ascending(
   to_ascending(simplify(to_descending(polynomial), zero))
 }
 
-/// Add two polynomials, using the operations passed.
-pub fn add(
-  first a: Polynomial(a, b),
-  second b: Polynomial(a, b),
+// ---------- Operations ----------
+
+/// Evaluate an descending polynomial, using the operations passed.
+pub fn evaluate(
+  polynomial polynomial: Polynomial(a, Descending),
+  x value: a,
   with operations: Operations(a),
-) -> Polynomial(a, b) {
-  Polynomial(do_add(a.coefficients, b.coefficients, operations.add, []))
+) -> a {
+  do_evaluate(polynomial.coefficients, value, operations, operations.zero)
+}
+
+/// Evaluate an ascending polynomial, using the operations passed.
+pub fn evaluate_ascending(
+  polynomial polynomial: Polynomial(a, Ascending),
+  x value: a,
+  with operations: Operations(a),
+) -> a {
+  do_evaluate(
+    list.reverse(polynomial.coefficients),
+    value,
+    operations,
+    operations.zero,
+  )
+}
+
+fn do_evaluate(
+  coefficients: List(a),
+  value: a,
+  operations: Operations(a),
+  acc: a,
+) -> a {
+  case coefficients {
+    [c, ..rest] ->
+      do_evaluate(
+        rest,
+        value,
+        operations,
+        operations.add(operations.multiply(acc, value), c),
+      )
+    [] -> acc
+  }
+}
+
+/// Add two descending polynomials, using the operations passed.
+pub fn add(
+  first a: Polynomial(a, Descending),
+  second b: Polynomial(a, Descending),
+  with operations: Operations(a),
+) -> Polynomial(a, Descending) {
+  Polynomial(
+    list.reverse(
+      do_add(
+        list.reverse(a.coefficients),
+        list.reverse(b.coefficients),
+        operations.add,
+        [],
+      ),
+    ),
+  )
 }
 
 fn do_add(a: List(a), b: List(a), add: fn(a, a) -> a, acc: List(a)) -> List(a) {
@@ -113,12 +171,20 @@ fn do_add(a: List(a), b: List(a), add: fn(a, a) -> a, acc: List(a)) -> List(a) {
 
 /// Subtract two polynomials, using the operations passed.
 pub fn subtract(
-  first a: Polynomial(a, b),
-  second b: Polynomial(a, b),
+  first a: Polynomial(a, Descending),
+  second b: Polynomial(a, Descending),
   with operations: Operations(a),
-) -> Polynomial(a, b) {
+) -> Polynomial(a, Descending) {
   Polynomial(
-    do_subtract(a.coefficients, b.coefficients, operations.subtract, []),
+    list.reverse(
+      do_subtract(
+        list.reverse(a.coefficients),
+        list.reverse(b.coefficients),
+        operations.subtract,
+        operations.zero,
+        [],
+      ),
+    ),
   )
 }
 
@@ -126,13 +192,15 @@ fn do_subtract(
   a: List(a),
   b: List(a),
   subtract: fn(a, a) -> a,
+  zero: a,
   acc: List(a),
 ) -> List(a) {
   case a, b {
     [c1, ..a], [c2, ..b] ->
-      do_subtract(a, b, subtract, [subtract(c1, c2), ..acc])
-    [c, ..a], [] -> do_subtract(a, b, subtract, [c, ..acc])
-    [], [c, ..b] -> do_subtract(a, b, subtract, [c, ..acc])
+      do_subtract(a, b, subtract, zero, [subtract(c1, c2), ..acc])
+    [c, ..a], [] -> do_subtract(a, b, subtract, zero, [c, ..acc])
+    [], [c, ..b] ->
+      do_subtract(a, b, subtract, zero, [subtract(zero, c), ..acc])
     [], [] -> list.reverse(acc)
   }
 }
@@ -181,37 +249,55 @@ pub fn long_divide(
 ) -> #(Polynomial(a, Descending), Polynomial(a, Descending)) {
   let degree_divisor = degree(divisor, operations.zero)
   let degree_dividend = degree(dividend, operations.zero)
-
-  use <- bool.guard(degree_divisor < degree_dividend, #(Polynomial([]), divisor))
-  let new_dividend =
-    list.flatten([
-      dividend.coefficients,
-      list.repeat(operations.zero, degree_divisor - degree_dividend),
-    ])
-  let assert Ok(divisor_first) = list.first(divisor.coefficients)
-  let assert Ok(dividend_first) = list.first(new_dividend)
-
-  let assert Ok(multiplier) = operations.divide(divisor_first, dividend_first)
-
-  let remainder =
-    subtract(
+  let #(quotient, result) =
+    do_long_divide(
       divisor,
-      multiply(Polynomial(new_dividend), Polynomial([multiplier]), operations),
+      dividend,
       operations,
+      degree_divisor - degree_dividend,
     )
 
-  use <- bool.guard(
-    list.fold_until(remainder.coefficients, True, fn(_, v) {
-      case v == operations.zero {
-        True -> list.Continue(True)
-        False -> list.Stop(False)
-      }
-    }),
-    #(Polynomial([]), Polynomial([])),
-  )
+  #(simplify(quotient, operations.zero), simplify(result, operations.zero))
+}
 
-  let #(Polynomial(c), remainder) =
-    long_divide(simplify(remainder, operations.zero), dividend, operations)
+fn do_long_divide(
+  divisor: Polynomial(a, Descending),
+  dividend: Polynomial(a, Descending),
+  operations: Operations(a),
+  offset: Int,
+) -> #(Polynomial(a, Descending), Polynomial(a, Descending)) {
+  use <- bool.guard(offset < 0, #(Polynomial([]), divisor))
 
-  #(Polynomial([multiplier, ..c]), remainder)
+  let degree_dividend = degree(dividend, operations.zero)
+
+  let multiplier =
+    iv.get(
+      iv.reverse(iv.from_list(divisor.coefficients)),
+      offset + degree_dividend - 1,
+    )
+    |> result.try(fn(a) {
+      list.first(dividend.coefficients)
+      |> result.map(fn(b) { #(a, b) })
+    })
+    |> result.try(fn(v) { operations.divide(v.0, v.1) })
+
+  case multiplier {
+    Ok(multiplier) -> {
+      let divisor =
+        subtract(
+          divisor,
+          multiply(
+            dividend,
+            from_list([multiplier, ..list.repeat(operations.zero, offset)]),
+            operations,
+          ),
+          operations,
+        )
+
+      let #(quotient, remainder) =
+        do_long_divide(divisor, dividend, operations, offset - 1)
+      #(from_list([multiplier, ..quotient.coefficients]), remainder)
+    }
+    Error(Nil) -> panic as "This probably shouldn't happen!"
+  }
 }
