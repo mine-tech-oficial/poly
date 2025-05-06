@@ -19,6 +19,18 @@ const operations = Operations(
   divide: float.divide,
 )
 
+// ---------- Conversion ----------
+
+/// Create a descending polynomial from a list. If it's empty, create a zero polynomial
+pub fn from_descending_list(coefficients: List(Float)) -> Polynomial {
+  poly.from_descending_list(coefficients, 0.0)
+}
+
+/// Create a descending polynomial from a list. If it's empty, create a zero polynomial
+pub fn from_ascending_list(coefficients: List(Float)) -> Polynomial {
+  poly.from_ascending_list(coefficients, 0.0)
+}
+
 // ---------- QOL ----------
 
 /// Get the degree of a polynomial.
@@ -57,6 +69,6 @@ pub fn multiply(first a: Polynomial, second b: Polynomial) -> Polynomial {
 pub fn long_divide(
   divisor a: Polynomial,
   dividend b: Polynomial,
-) -> #(Polynomial, Polynomial) {
+) -> Result(#(Polynomial, Polynomial), Nil) {
   poly.long_divide(a, b, operations)
 }

@@ -4,10 +4,10 @@
 //// To use the operations, you need to construct a `Operations` variable, which holds the operations
 //// between each coefficient, and a "zero" value (the additive identity)
 
-import gleam/bool
 import gleam/list
 import gleam/result
 import iv
+import non_empty_list.{type NonEmptyList, NonEmptyList}
 
 /// A type representing the operations of the coefficient.
 /// 
@@ -27,34 +27,73 @@ pub type Operations(a) {
 
 /// A polynomial with coefficients of type `coefficient`.
 pub type Polynomial(coefficient) {
-  Ascending(coefficients: List(coefficient))
-  Descending(coefficients: List(coefficient))
+  Ascending(coefficients: NonEmptyList(coefficient))
+  Descending(coefficients: NonEmptyList(coefficient))
 }
 
 // ---------- Conversion ----------
 
 /// Reverses the order of the coefficients of the polynomial.
 pub fn reverse(polynomial: Polynomial(a)) -> Polynomial(a) {
-  let coefficients = list.reverse(polynomial.coefficients)
+  let coefficients = non_empty_list.reverse(polynomial.coefficients)
   case polynomial {
     Ascending(_) -> Descending(coefficients)
-    Descending(_) -> Descending(coefficients)
+    Descending(_) -> Ascending(coefficients)
+  }
+}
+
+/// Create a descending polynomial from a list. If it's empty, create a zero polynomial
+pub fn from_descending_list(coefficients: List(a), zero: a) -> Polynomial(a) {
+  case coefficients {
+    [first, ..rest] -> Descending(NonEmptyList(first, rest))
+    [] -> Descending(NonEmptyList(zero, []))
+  }
+}
+
+/// Create a descending polynomial from a list. If it's empty, create a zero polynomial
+pub fn from_ascending_list(coefficients: List(a), zero: a) -> Polynomial(a) {
+  case coefficients {
+    [first, ..rest] -> Ascending(NonEmptyList(first, rest))
+    [] -> Ascending(NonEmptyList(zero, []))
   }
 }
 
 // ---------- QOL ----------
 
+/// Gets the coefficients of the polynomial in a descending order (no matter the polynomial order).
+pub fn get_descending_coefficients(polynomial: Polynomial(a)) -> NonEmptyList(a) {
+  case polynomial {
+    Descending(coefficients) -> coefficients
+    Ascending(coefficients) -> non_empty_list.reverse(coefficients)
+  }
+}
+
+/// Gets the coefficients of the polynomial in an ascending order (no matter the polynomial order).
+pub fn get_ascending_coefficients(polynomial: Polynomial(a)) -> NonEmptyList(a) {
+  case polynomial {
+    Ascending(coefficients) -> coefficients
+    Descending(coefficients) -> non_empty_list.reverse(coefficients)
+  }
+}
+
 /// Get the degree of a polynomial.
 pub fn degree(polynomial: Polynomial(a), zero: a) -> Int {
-  list.length(simplify(polynomial, zero).coefficients)
+  simplify(polynomial, zero).coefficients
+  |> non_empty_list.to_list
+  |> list.length
 }
 
 /// Simplify a polynomial.
 pub fn simplify(polynomial: Polynomial(a), zero: a) -> Polynomial(a) {
+  let simplified =
+    get_descending_coefficients(polynomial)
+    |> non_empty_list.to_list
+    |> do_simplify(zero)
+    |> from_descending_list(zero)
+
   case polynomial {
-    Descending(coefficients) -> Descending(do_simplify(coefficients, zero))
-    Ascending(coefficients) ->
-      Ascending(list.reverse(do_simplify(list.reverse(coefficients), zero)))
+    Descending(_) -> simplified
+    Ascending(_) -> reverse(simplified)
   }
 }
 
@@ -75,10 +114,15 @@ pub fn evaluate(
 ) -> a {
   case polynomial {
     Descending(coefficients) ->
-      do_evaluate(coefficients, value, operations, operations.zero)
+      do_evaluate(
+        non_empty_list.to_list(coefficients),
+        value,
+        operations,
+        operations.zero,
+      )
     Ascending(coefficients) ->
       do_evaluate(
-        list.reverse(coefficients),
+        list.reverse(non_empty_list.to_list(coefficients)),
         value,
         operations,
         operations.zero,
@@ -110,16 +154,15 @@ pub fn add(
   second b: Polynomial(a),
   with operations: Operations(a),
 ) -> Polynomial(a) {
-  let a = case a {
-    Descending(coefficients) -> list.reverse(coefficients)
-    Ascending(coefficients) -> coefficients
-  }
-  let b = case b {
-    Descending(coefficients) -> list.reverse(coefficients)
-    Ascending(coefficients) -> coefficients
-  }
+  let a =
+    get_ascending_coefficients(a)
+    |> non_empty_list.to_list
+  let b =
+    get_ascending_coefficients(b)
+    |> non_empty_list.to_list
 
-  Descending(do_add(a, b, operations.add, []))
+  do_add(a, b, operations.add, [])
+  |> from_descending_list(operations.zero)
 }
 
 fn do_add(a: List(a), b: List(a), add: fn(a, a) -> a, acc: List(a)) -> List(a) {
@@ -137,16 +180,15 @@ pub fn subtract(
   second b: Polynomial(a),
   with operations: Operations(a),
 ) -> Polynomial(a) {
-  let a = case a {
-    Descending(coefficients) -> list.reverse(coefficients)
-    Ascending(coefficients) -> coefficients
-  }
-  let b = case b {
-    Descending(coefficients) -> list.reverse(coefficients)
-    Ascending(coefficients) -> coefficients
-  }
+  let a =
+    get_ascending_coefficients(a)
+    |> non_empty_list.to_list
+  let b =
+    get_ascending_coefficients(b)
+    |> non_empty_list.to_list
 
-  Descending(do_subtract(a, b, operations.subtract, operations.zero, []))
+  do_subtract(a, b, operations.subtract, operations.zero, [])
+  |> from_descending_list(operations.zero)
 }
 
 fn do_subtract(
@@ -172,15 +214,15 @@ pub fn multiply(
   second b: Polynomial(a),
   with operations: Operations(a),
 ) -> Polynomial(a) {
-  let a = case a {
-    Descending(coefficients) -> list.reverse(coefficients)
-    Ascending(coefficients) -> coefficients
-  }
-  let b = case b {
-    Descending(coefficients) -> list.reverse(coefficients)
-    Ascending(coefficients) -> coefficients
-  }
-  Ascending(do_multiply(a, b, operations))
+  let a =
+    get_ascending_coefficients(a)
+    |> non_empty_list.to_list
+  let b =
+    get_ascending_coefficients(b)
+    |> non_empty_list.to_list
+
+  do_multiply(a, b, operations)
+  |> from_ascending_list(operations.zero)
 }
 
 fn do_multiply(
@@ -210,52 +252,49 @@ pub fn long_divide(
   divisor divisor: Polynomial(a),
   dividend dividend: Polynomial(a),
   with operations: Operations(a),
-) -> #(Polynomial(a), Polynomial(a)) {
+) -> Result(#(Polynomial(a), Polynomial(a)), Nil) {
   let degree_divisor = degree(divisor, operations.zero)
   let degree_dividend = degree(dividend, operations.zero)
 
-  let divisor = case divisor {
-    Descending(coefficients) -> coefficients
-    Ascending(coefficients) -> list.reverse(coefficients)
-  }
-  let dividend = case dividend {
-    Descending(coefficients) -> coefficients
-    Ascending(coefficients) -> list.reverse(coefficients)
-  }
+  let divisor = get_descending_coefficients(divisor)
+  let dividend = get_descending_coefficients(dividend)
 
-  let #(quotient, result) =
+  use #(quotient, remainder) <- result.map(
     do_long_divide(
       divisor,
       dividend,
       operations,
       degree_divisor - degree_dividend,
       [],
-    )
+    ),
+  )
 
+  let quotient = from_descending_list(quotient, operations.zero)
   #(
-    simplify(Descending(quotient), operations.zero),
-    simplify(Descending(result), operations.zero),
+    simplify(quotient, operations.zero),
+    simplify(Descending(remainder), operations.zero),
   )
 }
 
 fn do_long_divide(
-  divisor: List(a),
-  dividend: List(a),
+  divisor: NonEmptyList(a),
+  dividend: NonEmptyList(a),
   operations: Operations(a),
   offset: Int,
   acc: List(a),
-) -> #(List(a), List(a)) {
+) -> Result(#(List(a), NonEmptyList(a)), Nil) {
   case offset < 0 {
-    True -> #(list.reverse(acc), divisor)
+    True -> Ok(#(list.reverse(acc), divisor))
     False -> {
       let degree_dividend = degree(Descending(dividend), operations.zero)
 
       let multiplier =
-        iv.get(iv.reverse(iv.from_list(divisor)), offset + degree_dividend - 1)
-        |> result.try(fn(a) {
-          list.first(dividend)
-          |> result.map(fn(b) { #(a, b) })
-        })
+        divisor
+        |> non_empty_list.to_list
+        |> iv.from_list
+        |> iv.reverse
+        |> iv.get(offset + degree_dividend - 1)
+        |> result.map(fn(a) { #(a, dividend.first) })
         |> result.try(fn(v) { operations.divide(v.0, v.1) })
 
       case multiplier {
@@ -265,7 +304,10 @@ fn do_long_divide(
               Descending(divisor),
               multiply(
                 Descending(dividend),
-                Descending([multiplier, ..list.repeat(operations.zero, offset)]),
+                Descending(NonEmptyList(
+                  first: multiplier,
+                  rest: list.repeat(operations.zero, offset),
+                )),
                 operations,
               ),
               operations,
@@ -279,7 +321,7 @@ fn do_long_divide(
             [multiplier, ..acc],
           )
         }
-        Error(Nil) -> panic as "This probably shouldn't happen!"
+        Error(Nil) -> Error(Nil)
       }
     }
   }
