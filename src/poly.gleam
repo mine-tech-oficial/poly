@@ -229,6 +229,7 @@ pub fn long_divide(
       dividend,
       operations,
       degree_divisor - degree_dividend,
+      [],
     )
 
   #(
@@ -242,36 +243,44 @@ fn do_long_divide(
   dividend: List(a),
   operations: Operations(a),
   offset: Int,
+  acc: List(a),
 ) -> #(List(a), List(a)) {
-  use <- bool.guard(offset < 0, #([], divisor))
+  case offset < 0 {
+    True -> #(list.reverse(acc), divisor)
+    False -> {
+      let degree_dividend = degree(Descending(dividend), operations.zero)
 
-  let degree_dividend = degree(Descending(dividend), operations.zero)
+      let multiplier =
+        iv.get(iv.reverse(iv.from_list(divisor)), offset + degree_dividend - 1)
+        |> result.try(fn(a) {
+          list.first(dividend)
+          |> result.map(fn(b) { #(a, b) })
+        })
+        |> result.try(fn(v) { operations.divide(v.0, v.1) })
 
-  let multiplier =
-    iv.get(iv.reverse(iv.from_list(divisor)), offset + degree_dividend - 1)
-    |> result.try(fn(a) {
-      list.first(dividend)
-      |> result.map(fn(b) { #(a, b) })
-    })
-    |> result.try(fn(v) { operations.divide(v.0, v.1) })
+      case multiplier {
+        Ok(multiplier) -> {
+          let divisor =
+            subtract(
+              Descending(divisor),
+              multiply(
+                Descending(dividend),
+                Descending([multiplier, ..list.repeat(operations.zero, offset)]),
+                operations,
+              ),
+              operations,
+            )
 
-  case multiplier {
-    Ok(multiplier) -> {
-      let divisor =
-        subtract(
-          Descending(divisor),
-          multiply(
-            Descending(dividend),
-            Descending([multiplier, ..list.repeat(operations.zero, offset)]),
+          do_long_divide(
+            divisor.coefficients,
+            dividend,
             operations,
-          ),
-          operations,
-        )
-
-      let #(quotient, remainder) =
-        do_long_divide(divisor.coefficients, dividend, operations, offset - 1)
-      #([multiplier, ..quotient], remainder)
+            offset - 1,
+            [multiplier, ..acc],
+          )
+        }
+        Error(Nil) -> panic as "This probably shouldn't happen!"
+      }
     }
-    Error(Nil) -> panic as "This probably shouldn't happen!"
   }
 }
