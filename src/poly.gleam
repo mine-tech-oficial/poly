@@ -31,6 +31,10 @@ pub type Polynomial(coefficient) {
   Descending(coefficients: NonEmptyList(coefficient))
 }
 
+pub type DivisionError {
+  DivisionByZero
+}
+
 // ---------- Conversion ----------
 
 /// Reverses the order of the coefficients of the polynomial.
@@ -201,6 +205,24 @@ pub fn subtract(
   |> simplify(operations.zero)
 }
 
+fn subtract_no_simplify(
+  first a: Polynomial(a),
+  second b: Polynomial(a),
+  with operations: Operations(a),
+) -> Polynomial(a) {
+  let a =
+    a
+    |> get_ascending_coefficients
+    |> non_empty_list.to_list
+  let b =
+    b
+    |> get_ascending_coefficients
+    |> non_empty_list.to_list
+
+  do_subtract(a, b, operations.subtract, operations.zero, [])
+  |> from_descending_list(operations.zero)
+}
+
 fn do_subtract(
   a: List(a),
   b: List(a),
@@ -240,6 +262,24 @@ pub fn multiply(
   |> simplify(operations.zero)
 }
 
+fn multiply_no_simplify(
+  first a: Polynomial(a),
+  second b: Polynomial(a),
+  with operations: Operations(a),
+) -> Polynomial(a) {
+  let a =
+    a
+    |> get_ascending_coefficients
+    |> non_empty_list.to_list
+  let b =
+    b
+    |> get_ascending_coefficients
+    |> non_empty_list.to_list
+
+  do_multiply(a, b, operations)
+  |> from_ascending_list(operations.zero)
+}
+
 fn do_multiply(
   first a: List(a),
   second b: List(a),
@@ -267,7 +307,7 @@ pub fn long_divide(
   divisor divisor: Polynomial(a),
   dividend dividend: Polynomial(a),
   with operations: Operations(a),
-) -> Result(#(Polynomial(a), Polynomial(a)), Nil) {
+) -> Result(#(Polynomial(a), Polynomial(a)), DivisionError) {
   let degree_divisor = degree(divisor, operations.zero)
   let degree_dividend = degree(dividend, operations.zero)
 
@@ -303,27 +343,30 @@ fn do_long_divide(
   operations: Operations(a),
   offset: Int,
   acc: List(a),
-) -> Result(#(List(a), NonEmptyList(a)), Nil) {
+) -> Result(#(List(a), NonEmptyList(a)), DivisionError) {
   case offset < 0 {
     True -> Ok(#(list.reverse(acc), divisor))
     False -> {
       let degree_dividend = degree(Descending(dividend), operations.zero)
 
-      let multiplier =
+      let assert Ok(coefficient) =
         divisor
         |> non_empty_list.to_list
         |> iv.from_list
         |> iv.reverse
         |> iv.get(offset + degree_dividend - 1)
-        |> result.map(fn(a) { #(a, dividend.first) })
-        |> result.try(fn(v) { operations.divide(v.0, v.1) })
+        as "This shouldn't have happened. Please report this bug at https://github.com/mine-tech-oficial/poly/issues"
+
+      let multiplier =
+        operations.divide(coefficient, dividend.first)
+        |> result.replace_error(DivisionByZero)
 
       case multiplier {
         Ok(multiplier) -> {
           let divisor =
-            subtract(
+            subtract_no_simplify(
               Descending(divisor),
-              multiply(
+              multiply_no_simplify(
                 Descending(dividend),
                 Descending(NonEmptyList(
                   first: multiplier,
@@ -342,7 +385,7 @@ fn do_long_divide(
             [multiplier, ..acc],
           )
         }
-        Error(Nil) -> Error(Nil)
+        Error(e) -> Error(e)
       }
     }
   }

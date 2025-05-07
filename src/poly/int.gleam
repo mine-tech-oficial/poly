@@ -3,7 +3,7 @@
 //// For polynomial creation and conversion, use the functions provided in the `poly` module
 
 import gleam/int
-import poly.{Operations}
+import poly.{type DivisionError, Operations}
 
 /// A polynomial with integer coefficients.
 /// 
@@ -69,6 +69,6 @@ pub fn multiply(first a: Polynomial, second b: Polynomial) -> Polynomial {
 pub fn long_divide(
   divisor a: Polynomial,
   dividend b: Polynomial,
-) -> Result(#(Polynomial, Polynomial), Nil) {
+) -> Result(#(Polynomial, Polynomial), DivisionError) {
   poly.long_divide(a, b, operations)
 }
