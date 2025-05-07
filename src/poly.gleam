@@ -50,7 +50,7 @@ pub fn from_descending_list(coefficients: List(a), zero: a) -> Polynomial(a) {
   }
 }
 
-/// Create a descending polynomial from a list. If it's empty, create a zero polynomial
+/// Create an ascending polynomial from a list. If it's empty, create a zero polynomial
 pub fn from_ascending_list(coefficients: List(a), zero: a) -> Polynomial(a) {
   case coefficients {
     [first, ..rest] -> Ascending(NonEmptyList(first, rest))
@@ -155,14 +155,19 @@ pub fn add(
   with operations: Operations(a),
 ) -> Polynomial(a) {
   let a =
-    get_ascending_coefficients(a)
+    a
+    |> simplify(operations.zero)
+    |> get_ascending_coefficients
     |> non_empty_list.to_list
   let b =
-    get_ascending_coefficients(b)
+    b
+    |> simplify(operations.zero)
+    |> get_ascending_coefficients
     |> non_empty_list.to_list
 
   do_add(a, b, operations.add, [])
   |> from_descending_list(operations.zero)
+  |> simplify(operations.zero)
 }
 
 fn do_add(a: List(a), b: List(a), add: fn(a, a) -> a, acc: List(a)) -> List(a) {
@@ -181,14 +186,19 @@ pub fn subtract(
   with operations: Operations(a),
 ) -> Polynomial(a) {
   let a =
-    get_ascending_coefficients(a)
+    a
+    |> simplify(operations.zero)
+    |> get_ascending_coefficients
     |> non_empty_list.to_list
   let b =
-    get_ascending_coefficients(b)
+    b
+    |> simplify(operations.zero)
+    |> get_ascending_coefficients
     |> non_empty_list.to_list
 
   do_subtract(a, b, operations.subtract, operations.zero, [])
   |> from_descending_list(operations.zero)
+  |> simplify(operations.zero)
 }
 
 fn do_subtract(
@@ -215,14 +225,19 @@ pub fn multiply(
   with operations: Operations(a),
 ) -> Polynomial(a) {
   let a =
-    get_ascending_coefficients(a)
+    a
+    |> simplify(operations.zero)
+    |> get_ascending_coefficients
     |> non_empty_list.to_list
   let b =
-    get_ascending_coefficients(b)
+    b
+    |> simplify(operations.zero)
+    |> get_ascending_coefficients
     |> non_empty_list.to_list
 
   do_multiply(a, b, operations)
   |> from_ascending_list(operations.zero)
+  |> simplify(operations.zero)
 }
 
 fn do_multiply(
@@ -256,8 +271,14 @@ pub fn long_divide(
   let degree_divisor = degree(divisor, operations.zero)
   let degree_dividend = degree(dividend, operations.zero)
 
-  let divisor = get_descending_coefficients(divisor)
-  let dividend = get_descending_coefficients(dividend)
+  let divisor =
+    divisor
+    |> simplify(operations.zero)
+    |> get_descending_coefficients
+  let dividend =
+    dividend
+    |> simplify(operations.zero)
+    |> get_descending_coefficients
 
   use #(quotient, remainder) <- result.map(
     do_long_divide(

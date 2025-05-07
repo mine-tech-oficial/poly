@@ -26,7 +26,7 @@ pub fn from_descending_list(coefficients: List(Float)) -> Polynomial {
   poly.from_descending_list(coefficients, 0.0)
 }
 
-/// Create a descending polynomial from a list. If it's empty, create a zero polynomial
+/// Create an ascending polynomial from a list. If it's empty, create a zero polynomial
 pub fn from_ascending_list(coefficients: List(Float)) -> Polynomial {
   poly.from_ascending_list(coefficients, 0.0)
 }
