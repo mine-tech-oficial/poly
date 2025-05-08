@@ -3,6 +3,22 @@
 //// 
 //// To use the operations, you need to construct a `Operations` variable, which holds the operations
 //// between each coefficient, and a "zero" value (the additive identity)
+//// 
+//// ### Convert
+//// [reverse](#reverse)
+//// [from_descending_list](#from_descending_list)
+//// [from_ascending_list](#from_ascending_list)
+//// [get_descending_coefficients](#get_descending_coefficients)
+//// [get_ascending_coefficients](#get_ascending_coefficients)
+//// [degree](#degree)
+//// [simplify](#simplify)
+//// 
+//// ### Operations
+//// [evaluate](#evaluate)
+//// [add](#add)
+//// [subtract](#add)
+//// [multiply](#add)
+//// [long_divide](#long_divide)
 
 import gleam/list
 import gleam/result
@@ -61,8 +77,6 @@ pub fn from_ascending_list(coefficients: List(a), zero: a) -> Polynomial(a) {
     [] -> Ascending(NonEmptyList(zero, []))
   }
 }
-
-// ---------- QOL ----------
 
 /// Gets the coefficients of the polynomial in a descending order (no matter the polynomial order).
 pub fn get_descending_coefficients(polynomial: Polynomial(a)) -> NonEmptyList(a) {
